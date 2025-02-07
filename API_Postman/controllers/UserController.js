@@ -1,4 +1,6 @@
 const User = require('../models/UserModel');
+const path = require('path');
+const fs = require('fs');
 
 module.exports.viewData = async (req,res)=>{
     try{
@@ -17,10 +19,18 @@ module.exports.viewData = async (req,res)=>{
 
 module.exports.addData = async(req,res)=>{
     try{
-        console.log(req.body);
+        var image = '';
+        if(req.file){
+            image = User.imgpath+'/'+req.file.filename;
+        }
+        req.body.userImage = image;
         let userData = await User.create(req.body);
-        return res.status(200).json({msg : 'insertData Succesfully',data :userData });
-
+        if(userData){
+            return res.status(200).json({msg : 'insertData Succesfully',data :userData });
+        }
+        else{
+            return res.status(200).json({msg : 'Data not Addedd'});
+        }
     }
     catch(err){
         return res.status(400).json({msg : 'Something is Wrong',error : err});
@@ -29,13 +39,26 @@ module.exports.addData = async(req,res)=>{
 
 module.exports.deleteData = async (req,res)=>{
     try{
-        console.log(req.params.id);
-        let DeleteData = await User.findByIdAndDelete(req.params.id);
-        if(DeleteData){
-            return res.status(200).json({msg : 'DeleteData Succesfully'});
-        }else{
-            return res.status(400).json({msg : 'Data Not Found',error : err});
+        let userFindData = await User.findById(req.params.id);
+        if(userFindData){
+            try{
+                let imgpath = path.join(__dirname,"..",userFindData.userImage);
+                await fs.unlinkSync(imgpath);
+            }
+            catch(err){
+                return res.status(400).json({msg : 'Something is Wrong',error : err});
+            }
+            let DeleteData = await User.findByIdAndDelete(req.params.id);
+            if(DeleteData){
+                return res.status(200).json({msg : 'DeleteData Succesfully'});
+            }else{
+                return res.status(400).json({msg : 'Data Not Found',error : err});
+            }
         }
+        else{
+            return res.status(200).json({msg : 'userData Not Found'});
+        }
+        
     }
     catch(err){
         return res.status(400).json({msg : 'Something is Wrong',error : err});
@@ -59,9 +82,22 @@ module.exports.singleData = async(req,res)=>{
 
 module.exports.updateData = async(req,res)=>{
     try{
-        let checkData = await User.findById(req.params.id);
-        if(checkData){
-            let updateData = await User.findByIdAndUpdate(checkData._id,req.body);
+        let userFindData = await User.findById(req.params.id);
+        if(req.file){
+            try{
+                let deletepath = path.join(__dirname,"..",userFindData.userImage);
+                await fs.unlinkSync(deletepath);
+            }
+            catch(err){
+               console.log("Image Not Found");
+            }
+            let findImage =  User.imgpath+'/'+req.file.filename;
+            req.body.userImage = findImage;
+        }
+        else{
+            req.body.userImage = userFindData.userImage;
+        }
+        let updateData = await User.findByIdAndUpdate(userFindData._id,req.body);
             if(updateData){
                 let latestUpdate = await User.findById(updateData._id);
                 return res.status(200).json({msg : 'Data Update Successfully',data : latestUpdate});
@@ -69,12 +105,8 @@ module.exports.updateData = async(req,res)=>{
             else{
                 return res.status(200).json({msg : 'UpdateData not Found'});
             }
-        }
-        else{
-            return res.status(200).json({msg : 'CheckData not Found'});
-        }
     }
     catch(err){
-        return res.status(400).json({msg : 'Something is Wrong',error : err});
+        console.log("Something Is Wrong please Try Agian",err);
     }
 }
