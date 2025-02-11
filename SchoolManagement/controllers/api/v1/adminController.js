@@ -35,6 +35,8 @@ module.exports.adminLogin = async(req,res)=>{
         if(checkAdmin){
             let checkPass = await bcrypt.compare(req.body.password,checkAdmin.password);
             if(checkPass){
+                checkAdmin = checkAdmin.toObject();
+                delete checkAdmin.password;
                 let adminToken = await jwt.sign({adminData :checkAdmin },'Gopi',{expiresIn : '1D'});
                 return res.status(200).json({msg : 'Login SuccessFully',AdminToken : adminToken});
             }
